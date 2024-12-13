@@ -2,29 +2,29 @@ import csv
 import sys
 from collections import defaultdict, deque
 
-def parse_graph(file_path):
+def parse_edges_from_csv(file_path):
     edges = []
-    with open(file_path, 'r') as csv_file:
-        reader = csv.reader(csv_file)
-        for row in reader:
-            edges.append(tuple(map(int, row)))
+    with open(file_path, 'r') as file:
+        reader = csv.reader(file)
+        edges = [tuple(map(int, row)) for row in reader]
     return edges
 
-def calculate_relationships(edges, node_count):
+def compute_relationships(edges, total_nodes):
     adjacency_list = defaultdict(list)
     reverse_adjacency_list = defaultdict(list)
+
     for parent, child in edges:
         adjacency_list[parent].append(child)
         reverse_adjacency_list[child].append(parent)
 
-    l_values = [[0] * 5 for _ in range(node_count)]
+    relationships = [[0] * 5 for _ in range(total_nodes)]
 
     for parent, children in adjacency_list.items():
         for child in children:
-            l_values[parent - 1][0] += 1
-            l_values[child - 1][1] += 1
+            relationships[parent - 1][0] += 1  # Out-degree
+            relationships[child - 1][1] += 1   # In-degree
 
-    for node in range(1, node_count + 1):
+    for node in range(1, total_nodes + 1):
         visited = set()
         queue = deque([(node, 0)])
         while queue:
@@ -33,27 +33,24 @@ def calculate_relationships(edges, node_count):
                 continue
             visited.add(current)
             if depth > 1:
-                l_values[node - 1][2] += 1
-                l_values[current - 1][3] += 1
+                relationships[node - 1][2] += 1  # Indirect children
+                relationships[current - 1][3] += 1  # Indirect parents
             for neighbor in adjacency_list[current]:
                 if neighbor not in visited:
                     queue.append((neighbor, depth + 1))
 
-    for node in range(1, node_count + 1):
+    for node in range(1, total_nodes + 1):
         parents = reverse_adjacency_list[node]
         siblings = set()
         for parent in parents:
             siblings.update(adjacency_list[parent])
         siblings.discard(node)
-        l_values[node - 1][4] = len(siblings)
+        relationships[node - 1][4] = len(siblings)  # Sibling count
 
-    return l_values
+    return relationships
 
-def format_output(l_values):
-    output = []
-    for row in l_values:
-        output.append(','.join(map(str, row)))
-    return '\n'.join(output)
+def generate_output(relationships):
+    return '\n'.join([','.join(map(str, row)) for row in relationships])
 
 def main():
     if len(sys.argv) != 2:
@@ -61,10 +58,10 @@ def main():
         sys.exit(1)
 
     file_path = sys.argv[1]
-    edges = parse_graph(file_path)
-    node_count = max(max(pair) for pair in edges)
-    l_values = calculate_relationships(edges, node_count)
-    print(format_output(l_values))
+    edges = parse_edges_from_csv(file_path)
+    total_nodes = max(max(edge) for edge in edges)
+    relationships = compute_relationships(edges, total_nodes)
+    print(generate_output(relationships))
 
 if __name__ == "__main__":
     main()
